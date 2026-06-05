@@ -9,11 +9,13 @@ export default async function handler(req, res) {
   try {
     const { messages, system } = req.body;
 
-    // Convert messages to Gemini format
-    const contents = messages.map(m => ({
-      role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: m.content }]
-    }));
+    const contents = [];
+    for (const m of messages) {
+      contents.push({
+        role: m.role === "assistant" ? "model" : "user",
+        parts: [{ text: typeof m.content === "string" ? m.content : JSON.stringify(m.content) }]
+      });
+    }
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
@@ -21,20 +23,24 @@ export default async function handler(req, res) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          system_instruction: { parts: [{ text: system }] },
+          system_instruction: { parts: [{ text: system || "" }] },
           contents,
-          generationConfig: { maxOutputTokens: 1000 }
+          generationConfig: { maxOutputTokens: 1000, temperature: 0.9 }
         }),
       }
     );
 
-    const data = await response.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Aiyo, something went wrong!";
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(JSON.stringify(err));
+    }
 
-    res.status(200).json({
-      content: [{ type: "text", text }]
-    });
+    const data = await response.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Aiyo, something went wrong machan!";
+
+    res.status(200).json({ content: [{ type: "text", text }] });
   } catch (err) {
+    console.error("Gemini error:", err.message);
     res.status(500).json({ error: { message: err.message } });
   }
 }
