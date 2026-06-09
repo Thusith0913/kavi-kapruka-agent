@@ -171,13 +171,23 @@ ${JSON.stringify(products)}
       dataCtx += `\n\nDELIVERY INFO:\n${deliveryInfo.slice(0,400)}\n\nOutput after summary:\n\`\`\`json:delivery\n{"City":"${city}","Details":"${deliveryInfo.slice(0,150).replace(/"/g,"'")}","Available":"Yes ✅"}\n\`\`\``;
     }
     if (trackingInfo) dataCtx += `\n\nTRACKING: ${trackingInfo.slice(0,400)}\nTell user status warmly.`;
-    if (categories) dataCtx += `\n\nCATEGORIES: ${categories.slice(0,400)}\nDescribe warmly.`;
-    if (intent==="checkout") dataCtx += `\n\nAfter your message output: [SHOW_DELIVERY_FORM]`;
+    // Fix #31: Always provide categories
+    const catList = categories || "Flowers 🌸, Cakes 🎂, Chocolates 🍫, Gift Hampers 🎁, Groceries 🛒, Electronics 📱, Fashion & Jewellery 👗, Fruits 🍎, Soft Toys 🧸, Books 📚, Health & Wellness 💊, Home & Lifestyle 🏠, Wine & Spirits 🍷, Sports 🏋️, Mother & Baby 👶";
+    if (intent==="categories") dataCtx += `\n\nKAPRUKA CATEGORIES: ${catList}\nList all categories warmly and enthusiastically.`;
+    else if (categories) dataCtx += `\n\nCATEGORIES: ${categories.slice(0,400)}`;
+    if (intent==="checkout") dataCtx += `\n\nCRITICAL: User wants to checkout NOW. You MUST end your response with [SHOW_DELIVERY_FORM] on its own line. No exceptions. Say something warm then put [SHOW_DELIVERY_FORM] on a new line.`;
     if (intent==="reorder") dataCtx += `\n\nUser wants to reorder. Ask what they want to reorder — their last order, usual groceries, or a specific item. Be enthusiastic about how easy reordering is with Kavi!`;
+
+    // Fix #47: Build context summary for better memory
+    const contextSummary = messages.length > 2
+      ? messages.slice(0,-1).map(m=>`${m.role}: ${String(m.content).slice(0,80)}`).join("\n")
+      : "";
 
     const sys = system || `You are Kavi — Sri Lanka's most beloved AI shopping companion for Kapruka.com. You are warm, bold, opinionated, emotionally intelligent, and deeply Sri Lankan.
 
 LANGUAGE: Singlish always — "Aiyo!", "Machan", "Aney", "Chee!" naturally. Never stiff or corporate.
+
+MEMORY: Always remember everything from earlier in this conversation. Names, cities, preferences, cart items — remember them all.\${contextSummary ? `\n\nCONVERSATION HISTORY:\n\${contextSummary}` : ""}
 
 PERSONALITY — BE BOLD AND OPINIONATED:
 - You are not a search box. You are a best friend who knows what to buy.
